@@ -378,24 +378,13 @@ def get_os_info(
 
     # Only include records that have set an operating_system.name
     filters += (columns[0].isnot(None),)
-
-    query_results = os_query.filter(*filters).all()
+    query_results = os_query.filter(*filters).distinct()
     db.session.close()
-    os_dict = {}
-    for result in query_results:
-        operating_system = ".".join(result)
-        if operating_system not in os_dict:
-            os_dict[operating_system] = 1
-        else:
-            os_dict[operating_system] += 1
 
-    os_count_list = []
-    for os_joined, count in os_dict.items():
-        os = os_joined.split(".")
-        os_count_item = {"value": {"name": os[0], "major": int(os[1]), "minor": int(os[2])}, "count": count}
-        os_count_list.append(os_count_item)
+    os_count_list = [
+        {"value": {"name": os[0], "major": int(os[1]), "minor": int(os[2])}, "count": 1} for os in query_results
+    ]
 
-    os_count_list = sorted(os_count_list, reverse=True, key=lambda item: item["count"])
     query_count = len(os_count_list)
     os_list = list(islice(islice(os_count_list, offset, None), limit))
     return os_list, query_count

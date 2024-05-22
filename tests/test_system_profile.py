@@ -368,8 +368,6 @@ def test_system_profile_operating_system(mq_create_or_update_host, api_get):
         if os_datum not in os_list:
             os_list.append(os_datum)
             os_dict[os_datum_name] = {"value": os_datum, "count": 1}
-        else:
-            os_dict[os_datum_name]["count"] += 1
 
     with patch("api.system_profile.get_flag_value", return_value=True):
         # Validate the basics, i.e. response code and results size
