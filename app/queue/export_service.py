@@ -1,3 +1,4 @@
+import json
 from functools import partial
 from http import HTTPStatus
 
@@ -48,6 +49,8 @@ def create_export(export_svc_data, org_id, operation_args={}, rbac_filter={}):
         REQUEST_ID_HEADER: exportUUID,
     }
 
+    # x-rh-exports-psk must be an env variable
+    request_headers = {"x-rh-exports-psk": config.export_service_token, "content-type": "application/json"}
     session = Session()
     try:
         request_url = {
@@ -63,18 +66,28 @@ def create_export(export_svc_data, org_id, operation_args={}, rbac_filter={}):
         )
 
         if data_to_export:
-            # todo(gchamoul):
-            # Next Step will done here:
-            # - POST to export service with the data to be exported
-            logger.info(f"Trying to upload data using URL: {request_url}")
+            logger.debug(f"Trying to upload data using URL:{request_url}")
+            response = session.post(url=request_url, headers=request_headers, data=json.dumps(data_to_export))
+            _handle_export_response(response, exportFormat, exportUUID)
         else:
-            # todo(gchamoul):
-            # POST to export service and handle an 404 error properly
-            logger.info(f"No data found for org_id: {identity.org_id}")
+            logger.debug(f"No data found for org_id: {identity.org_id}")
+            request_url = (
+                f"{config.export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/error"
+            )
+            response = session.post(
+                url=request_url,
+                headers=request_headers,
+                data=json.dumps({"message": f"No data found for org_id: {identity.org_id}", "error": 404}),
+            )
+            _handle_export_response(response, exportFormat, exportUUID)
     except Exception as e:
         logger.error(e)
-        # todo(gchamoul):
-        # POST to export service and handle an 500 error properly
+        request_url = (
+            f"{config.export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/error"
+        )
+        response = session.post(
+            url=request_url, headers=request_headers, data=json.dumps({"message": str(e), "error": 500})
+        )
     finally:
         session.close()
 
