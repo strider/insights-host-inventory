@@ -2355,6 +2355,45 @@ objects:
             COUNT(*) AS "host_count"
           FROM "hbi"."hosts"
           GROUP BY "provider_type";
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/org_id_by_system_update_method
+        chunksize: 10000
+        query: >-
+          SELECT
+            "aa"."org_id",
+            "aa"."update_method",
+            "aa"."hosts_count"
+          FROM (
+            SELECT
+              "org_id",
+              'image_mode' AS "update_method",
+              COUNT(*) AS "hosts_count"
+            FROM
+              "hbi"."hosts"
+            WHERE
+              "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' IS NOT NULL
+              AND "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' <> ''
+            GROUP BY
+              "org_id"
+
+            UNION ALL
+
+            SELECT
+              "org_id",
+              'package_mode' AS "update_method",
+              COUNT(*) AS "hosts_count"
+            FROM
+              "hbi"."hosts"
+            WHERE
+              "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' IS NULL
+              AND "system_profile_facts"->>'host_type' IS NULL
+            GROUP BY
+              "org_id"
+          ) AS "aa"
+          WHERE
+            "aa"."hosts_count" > 1
+          ORDER BY
+            "aa"."org_id" ASC
+            "aa"."update_method";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/duplicated_hosts_by_org
         chunksize: 10000
         query: >-
